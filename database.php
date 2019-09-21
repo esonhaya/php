@@ -48,15 +48,15 @@ if (isset($_POST["check_name_for_update"])) {
     $rs = $rs->num_rows;
     return $rs;
 }
-if(isset($_POST["get_category"])){
-    $query=$con->prepare("select * from category");
+if (isset($_POST["get_category"])) {
+    $query = $con->prepare("select * from category");
     $query->execute();
-    $res=$query->get_result();
-    $array=array();
-    while($row=$result->fetch_assoc()){
-        array_push($array,$row);
+    $res = $query->get_result();
+    $array = array();
+    while ($row = $result->fetch_assoc()) {
+        array_push($array, $row);
     }
-    echo json_encode(array("categories"=>$array));
+    echo json_encode(array("categories" => $array));
 }
 
 function check_pass($pass, $user_id)
@@ -74,13 +74,6 @@ function check_pass($pass, $user_id)
 // register repawner's account
 
 //generate code to activate account
-if (isset($_POST["gen_code"])) {
-    $gen_code = "";
-    $add_code = $con->prepare("insert into access_code(RePawner_ID,code) values(?,?)");
-    $gen_code = substr(md5(uniqid(mt_rand(), true)), 0, 7);
-    $add_code->bind_param("ss", $_POST["rep_id"], $gen_code);
-    $add_code->execute();
-}
 //get repawner_id based on email then sent access code
 if (isset($_POST["get_email"])) {
     $con = new mysqli("localhost", "root", "", "repawn");
@@ -275,5 +268,115 @@ function get_category_name($cat_id)
     $result = $sub_query_user->get_result();
     while ($subrow = $result->fetch_assoc()) {
         return $subrow["Category_name"];
+    }
+}
+if (isset($_POST["get_categories"])) {
+    $sql = $con->prepare("select * from category");
+    $sql->execute();
+    $res = $sql->get_result();
+    $arr = array();
+    while ($row = $res->fetch_assoc()) {
+        array_push($arr, $row);
+    }
+    echo json_encode(array("categories" => $arr));
+}
+if (isset($_POST["new_notif"])) {
+    $sql = $con->prepare("select * from notification where User_ID=" . $_POST["user_id"] . " and checked=0 order by 
+    Date_Posted desc");
+    $sql->execute();
+    $res = $sql->get_result();
+    $arr = array();
+    while ($row = $res->fetch_assoc()) {
+        $lid = $row["Link_ID"];
+        $table = get_seller_link($lid);
+        $name = get_name($table, $lid);
+        $row["image"] = image_for_notif($lid, $table);
+        $row["message"] = gen_message($name, $row["Type"], $lid);
+        array_push($arr, $row);
+    }
+    echo json_encode(array("news" => $arr));
+}
+function gen_message($name, $type, $lid)
+{
+    //type 1 for new items, 2 for order decision,3 for reserve decision, 4 promotion expired,5 someone followed you
+    //6 someone gave feedback
+    if ($type == 1) {
+        return $name." has posted new items. Check it out!";
+    } else if ($type == 2) {
+        return $name. " ".check_decision($lid, "Order")." your request.";
+    } else if ($type == 3) {
+        return $name . " ".check_decision($lid, "Reservation")." your request.";
+    } else if ($type == 4) {
+        return get_item_name($lid) ." promotion's expired.";
+    } else if ($type == 5) {
+        return get_name("repawner", $lid) ." is now following you.";
+    }
+    else if($type==6){
+        return get_name("repawner",$lid)." gave a feedback.";
+    }
+}
+function check_decision($lid, $where)
+{
+    $con = new mysqli("localhost", "root", "", "repawn");
+    $q = $con->prepare("select Status from " . $where . "_details where " . $where . "_Details_ID=" . $lid."");
+    $q->execute();
+    $res = $q->get_result();
+    while ($row = $res->fetch_assoc()) {
+        return $row["Status"];
+    }
+}
+function get_name($table, $uid)
+{
+    $con = new mysqli("localhost", "root", "", "repawn");
+    if ($table == "repawner") {
+        $sql = $con->prepare("select RePawner_Fname,RePawner_Lname from repawner where User_ID=" . $uid."");
+        $sql->execute();
+        $res = $sql->get_result();
+        while ($row = $res->fetch_assoc()) {
+            return $row["RePawner_Fname"]. " ". $row["RePawner_Lname"];
+        }
+    } else {
+        $sql = $con->prepare("select Pawnshop_name from pawnshop where User_ID=" . $uid."");
+        $sql->execute();
+        $res = $sql->get_result();
+        while ($row = $res->fetch_assoc()) {
+            return $row["Pawnshop_name"];
+        }
+    }
+}
+function get_item_name($id)
+{
+    $con = new mysqli("localhost", "root", "", "repawn");
+    $sql = $con->prepare("select Product_name from product where Product_ID=" . $id."");
+    $sql->execute();
+    $res = $sql->get_result();
+    while ($row = $res->fetch_assoc()) {
+        return $row["Product_name"];
+    }
+}
+function get_seller_link($uid)
+{
+    $con = new mysqli("localhost", "root", "", "repawn");
+    $q = $con->prepare("select User_ID from repawner where User_ID=" . $uid."");
+    $q->execute();
+    $r = $q->get_result();
+    while($row=$r->fetch_assoc()){
+        return "repawner";
+    }
+    $q = $con->prepare("select User_ID from pawnshop where User_ID=" . $uid."");
+    $q->execute();
+    $r = $q->get_result();
+    while($row=$r->fetch_assoc()){
+        return "repawner";
+    }
+}
+function image_for_notif($user_id, $table)
+{
+    $con = new mysqli("localhost", "root", "", "repawn");
+    $sql = $con->prepare("select user_image from " . $table . " where User_ID=" . $user_id."");
+    $sql->execute();
+    $res = $sql->get_result();
+    while ($row = $res->fetch_assoc()) {
+        return $row["user_image"];
     }
 }

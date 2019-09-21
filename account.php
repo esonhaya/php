@@ -3,7 +3,7 @@ include 'database.php';
 if (isset($_POST["login"])) {
     $pass = md5($_POST["pass"]);
     $exist = 0;
-    $query = $con->prepare("select * from repawner where RePawner_email=? and Password=?");
+    $query = $con->prepare("select * from repawner where RePawner_email=? and Password=? ");
     $query->bind_param("ss", $_POST["email"], $pass);
     $query->execute();
     $res = $query->get_result();
@@ -34,11 +34,13 @@ if (isset($_POST["register_user"])) {
             $maxf = $row["max_followed"];
         }
     }
-    $check_email = $con->prepare("select * from repawner where RePawner_email=?");
-    $check_email->bind_param("s", $_POST["email"]);
+    $check_email = $con->prepare("select count(*) c from repawner where RePawner_email=? or RePawner_contact=? and if_activated=1");
+    $check_email->bind_param("ss", $_POST["email"],$_POST["contact"]);
     $check_email->execute();
     $result = $check_email->get_result();
-    $res = $result->num_rows;
+    while($row=$result->fetch_assoc()){
+        $res=$row["c"];
+    }
     $pass = md5($_POST["pass"]);
     if ($res == 0) {
         $image_name = "" . $_POST["email"] . ".jpg";
@@ -63,6 +65,25 @@ if (isset($_POST["register_user"])) {
         $add_user->execute();
         echo "You have now succesfully registered, Now login please";
     }
+    else{
+        echo "1";
+    }
+
+}
+if(isset($_POST["gen_code"])){
+    $query=$con->prepare("select User_ID from repawner where RePawner_email='".$_POST["email"]."'");
+    $query->execute();
+    $result=$query->get_result();
+    while($row=$result->fetch_assoc()){
+            $rep_id=$row["User_ID"];
+    }
+    echo $rep_id;
+    $gen_code = substr(md5(uniqid(mt_rand(), true)), 0, 7);
+  //  echo $gen_code;
+    $add_code = $con->prepare("insert into access_code(User_ID,code) values(?,?)");
+    $add_code->bind_param("ss", $rep_id, $gen_code);
+    $add_code->execute();
+    echo $gen_code;
 }
 if (isset($_POST["edit_basic"])) {
     $query = $con->prepare("select user_image from repawner where User_ID=?");
@@ -119,3 +140,41 @@ if (isset($_POST["account_update"])) {
         echo "Input correct password";
     }
 }
+if(isset($_POST["check_active"])){
+    $q=$con->prepare("select if_activated from repawner where User_ID=".$_POST["user_id"]."");
+    $q->execute();
+    $result=$q->get_result();
+    while($row=$result->fetch_assoc()){
+        echo $row["if_activated"];    
+    }
+
+}
+if(isset($_POST["check_access"])){
+    $q=$con->prepare("select count(*) as c from access_code where User_ID=".$_POST["user_id"]." and code='".$_POST["code"]."'");
+    $q->execute();
+    $r=$q->get_result();
+    while($row=$r->fetch_assoc()){
+        $code= $row["c"];
+    }
+    if($code==1){
+        $q=$con->prepare("update repawner set if_activated=1 where User_ID=".$_POST["user_id"]."");
+        $q->execute();
+    }
+    echo $code;
+}
+if(isset($_POST["gen_nother"])){
+    $q=$con->prepare("update access_code set code=? where User_ID=?");
+    $gen_code = substr(md5(uniqid(mt_rand(), true)), 0, 7);
+    $q->bind_param("ss",$gen_code,$_POST["user_id"]);
+    $q->execute();
+    echo $gen_code;
+}
+if(isset($_POST["get_contact"])){
+    $q=$con->prepare("select RePawner_contact from repawner where user_id=".$_POST["user_id"]."");
+    $q->execute();
+    $r=$q->get_result();
+    while($row=$r->fetch_assoc()){
+        echo $row["RePawner_contact"];
+    }
+}
+

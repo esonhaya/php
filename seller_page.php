@@ -74,6 +74,9 @@ if (isset($_POST["post_feedback"])) {
     }
     $query->bind_param("ssss", $_POST["feedback"], $_POST["rating"], $_POST["user_id"], $rid);
     $query->execute();
+    $notif=$con->prepare("insert into notification(Link_ID,User_ID,Type)values(?,?,?)");
+    $notif->bind_param("sss",$rid,$_POST["user_id"],6);
+    $notif->execute();
     echo $message;
 }
 if (isset($_POST["feedback_ratings"])) {
@@ -91,7 +94,8 @@ if (isset($_POST["follow_this"])) {
     $message = "";
     $query = $con->prepare("select count(User_ID) as following from follow_seller where Followed_ID=?
     and User_ID=?");
-    $query->bind_param("ss", $_POST["followed_id"], $_POST["user_id"]);
+    $user_id=$_POST["user_id"];
+    $query->bind_param("ss", $_POST["followed_id"], $user_id);
     $query->execute();
     $result = $query->get_result();
     while ($row = $result->fetch_assoc()) {
@@ -113,8 +117,11 @@ if (isset($_POST["follow_this"])) {
     } else {
         $query = $con->prepare("insert into follow_seller(Followed_ID,User_ID)values(?,?)");
     }
-    $query->bind_param("ss", $_POST["followed_id"], $_POST["user_id"]);
+    $query->bind_param("ss", $_POST["followed_id"], $user_id);
     $query->execute();
+    $notif=$con->prepare("insert into notification(Link_ID,User_ID,Type)values(?,?,?)");
+    $notif->bind_param("sss",$user_id,$_POST["seller_id"],5);
+    $notif->execute();
     echo $message;
 }
 if (isset($_POST["check_following"])) {
